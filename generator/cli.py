@@ -50,7 +50,7 @@ def main():
 
         ent.id = train["gtfsId"]
         ent.trip_update.trip.trip_id = train["gtfsId"]
-        ent.trip_update.trip.start_date = "20250818"
+        ent.trip_update.trip.start_date = train["gtfsId"][0:10].replace("-", "")  # YYYYMMDD
         ent.trip_update.trip.schedule_relationship = (
             gtfs_realtime_pb2.TripDescriptor.SCHEDULED
         )
