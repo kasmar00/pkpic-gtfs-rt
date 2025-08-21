@@ -29,14 +29,15 @@ def station_to_dict(station):
 def main():
     print("This is the main function of the CLI module.")
     trains_json = requests.get("https://cdn.zbiorkom.live/active.json").json()
+    finished_trains_json = requests.get("https://cdn.zbiorkom.live/completed.json").json()
 
     trains = [train_to_dict(train) for train in trains_json["trains"]]
+    alerts = [alert for alert in trains_json["alerts"]]
 
-    trains_ic = [
-        train
-        for train in trains
-        if train["carrier"] == "IC" #and train["route"] == "ICeip"
-    ]
+    # TODO: add station ids and detours/canceled stations
+    # TODO: add finished trains
+
+    trains_ic = [train for train in trains if train["carrier"] == "IC"]
 
     print(trains_ic[7])
     print("Total trains:", len(trains_ic))
@@ -50,28 +51,53 @@ def main():
 
         ent.id = train["gtfsId"]
         ent.trip_update.trip.trip_id = train["gtfsId"]
-        ent.trip_update.trip.start_date = train["gtfsId"][0:10].replace("-", "")  # YYYYMMDD
+        ent.trip_update.trip.start_date = train["gtfsId"][0:10].replace(
+            "-", ""
+        )  # YYYYMMDD
         ent.trip_update.trip.schedule_relationship = (
             gtfs_realtime_pb2.TripDescriptor.SCHEDULED
         )
-        # ent.trip_update.delay = 600
 
         for i, station in enumerate(train["stations"]):
             stu = gtfs_realtime_pb2.TripUpdate.StopTimeUpdate(
                 stop_sequence=i,
                 departure=gtfs_realtime_pb2.TripUpdate.StopTimeEvent(
-                    delay = int(station["departureDelay"]/1000)
+                    delay=int(station["departureDelay"] / 1000)
                 ),
-                arrival = gtfs_realtime_pb2.TripUpdate.StopTimeEvent(
-                    delay = int(station["arrivalDelay"]/1000),
+                arrival=gtfs_realtime_pb2.TripUpdate.StopTimeEvent(
+                    delay=int(station["arrivalDelay"] / 1000),
                 ),
             )
             ent.trip_update.stop_time_update.append(stu)
-        
+
+            for alertId in station["alertIds"]:
+                alert: str = alerts[alertId]
+                alert_ent = gtfs_realtime_pb2.FeedEntity()
+                alert_ent.id = ent.id + f"_{i}_{alertId}"
+
+                alert_ent.alert.cause = gtfs_realtime_pb2.Alert.UNKNOWN_CAUSE
+                alert_ent.alert.effect = gtfs_realtime_pb2.Alert.UNKNOWN_EFFECT
+
+                alert_ent.alert.header_text.translation.append(
+                    gtfs_realtime_pb2.TranslatedString.Translation(
+                        text=alert,
+                        language="pl",
+                    )
+                )
+
+                trip_selector = gtfs_realtime_pb2.EntitySelector()
+                trip_selector.trip.trip_id = ent.trip_update.trip.trip_id
+
+                alert_ent.alert.informed_entity.append(trip_selector)
+                # alert_ent.alert.informed_entity.trip.trip_id = ent.id
+                feed.entity.append(alert_ent)
+
         if "5310" in train["gtfsId"]:
             print("Found train with ID 5310:", ent)
         feed.entity.append(ent)
-    # print(feed)
+
+    # with open("output.json", "w") as f:
+    #     f.write(str(feed))
 
     with open("output.pb", "wb") as f:
         f.write(feed.SerializeToString())
