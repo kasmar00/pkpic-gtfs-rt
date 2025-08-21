@@ -87,6 +87,7 @@ def main():
 
                 trip_selector = gtfs_realtime_pb2.EntitySelector()
                 trip_selector.trip.trip_id = ent.trip_update.trip.trip_id
+                trip_selector.trip.start_date = ent.trip_update.trip.start_date
 
                 alert_ent.alert.informed_entity.append(trip_selector)
                 # alert_ent.alert.informed_entity.trip.trip_id = ent.id
