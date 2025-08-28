@@ -39,7 +39,6 @@ def main():
 
     trains_ic = [train for train in trains if train["carrier"] == "IC"]
 
-    print(trains_ic[7])
     print("Total trains:", len(trains_ic))
 
     feed = gtfs_realtime_pb2.FeedMessage()
@@ -93,8 +92,6 @@ def main():
                 # alert_ent.alert.informed_entity.trip.trip_id = ent.id
                 feed.entity.append(alert_ent)
 
-        if "5310" in train["gtfsId"]:
-            print("Found train with ID 5310:", ent)
         feed.entity.append(ent)
 
     # with open("output.json", "w") as f:
