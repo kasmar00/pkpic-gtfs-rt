@@ -32,20 +32,26 @@ def main():
     trains_json = requests.get("https://cdn.zbiorkom.live/active.json").json()
     finished_trains_json = requests.get("https://cdn.zbiorkom.live/completed.json").json()
 
-    trains = [train_to_dict(train) for train in trains_json["trains"]]
-    alerts = [alert for alert in trains_json["alerts"]]
-
     # TODO: add station ids and detours/canceled stations
-    # TODO: add finished trains
-
-    trains_ic = [train for train in trains if train["carrier"] == "IC"]
-
-    print("Total trains:", len(trains_ic))
 
     feed = gtfs_realtime_pb2.FeedMessage()
 
     feed.header.gtfs_realtime_version = "2.0"
 
+    trains, alerts = json_to_trains_and_alerts(trains_json)
+    process_trains(trains, alerts, feed)
+
+    finished_trains, finished_alerts = json_to_trains_and_alerts(finished_trains_json)
+    process_trains(finished_trains, finished_alerts, feed)
+
+def json_to_trains_and_alerts(trains_json):
+    trains = [train_to_dict(train) for train in trains_json["trains"]]
+    alerts = [alert for alert in trains_json["alerts"]]
+    trains_ic = [train for train in trains if train["carrier"] == "IC"]
+
+    return trains_ic, alerts
+
+def process_trains(trains_ic, alerts, feed):
     for train in trains_ic:
         ent = gtfs_realtime_pb2.FeedEntity()
 
@@ -98,7 +104,6 @@ def main():
                 trip_selector.trip.start_date = ent.trip_update.trip.start_date
 
                 alert_ent.alert.informed_entity.append(trip_selector)
-                # alert_ent.alert.informed_entity.trip.trip_id = ent.id
                 feed.entity.append(alert_ent)
 
         feed.entity.append(ent)
