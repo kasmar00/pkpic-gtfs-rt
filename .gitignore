@@ -1,3 +1,4 @@
 .env
 *.pyc
 *.pb
+output.json

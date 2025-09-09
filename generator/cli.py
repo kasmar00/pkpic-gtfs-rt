@@ -1,5 +1,6 @@
 import requests
 from google.transit import gtfs_realtime_pb2
+import os
 
 
 def train_to_dict(train):
@@ -69,6 +70,7 @@ def main():
             )
             ent.trip_update.stop_time_update.append(stu)
 
+            # TODO: add one global alert for all trains with the same alert text
             for alertId in station["alertIds"]:
                 alert: str = alerts[alertId]
                 alert_ent = gtfs_realtime_pb2.FeedEntity()
@@ -85,6 +87,7 @@ def main():
                 )
 
                 trip_selector = gtfs_realtime_pb2.EntitySelector()
+                # TODO: add affected stop
                 trip_selector.trip.trip_id = ent.trip_update.trip.trip_id
                 trip_selector.trip.start_date = ent.trip_update.trip.start_date
 
@@ -94,8 +97,9 @@ def main():
 
         feed.entity.append(ent)
 
-    # with open("output.json", "w") as f:
-    #     f.write(str(feed))
+    if os.environ.get("DEBUG"):
+        with open("output.json", "w") as f:
+            f.write(str(feed))
 
     with open("output.pb", "wb") as f:
         f.write(feed.SerializeToString())
