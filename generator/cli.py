@@ -68,6 +68,12 @@ def main():
                     delay=int(station["arrivalDelay"] / 1000),
                 ),
             )
+
+            if station["isCancelled"]:
+                stu.schedule_relationship = (
+                    gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.ScheduleRelationship.SKIPPED
+                )
+
             ent.trip_update.stop_time_update.append(stu)
 
             # TODO: add one global alert for all trains with the same alert text
