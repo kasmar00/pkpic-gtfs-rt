@@ -1,6 +1,7 @@
 import requests
 from google.transit import gtfs_realtime_pb2
 import os
+from datetime import datetime
 
 
 def train_to_dict(train):
@@ -44,12 +45,21 @@ def main():
     finished_trains, finished_alerts = json_to_trains_and_alerts(finished_trains_json)
     process_trains(finished_trains, finished_alerts, feed)
 
+    if os.environ.get("DEBUG"):
+        with open("output.json", "w") as f:
+            f.write(str(feed))
+
+    with open("output.pb", "wb") as f:
+        f.write(feed.SerializeToString())
+
+
 def json_to_trains_and_alerts(trains_json):
     trains = [train_to_dict(train) for train in trains_json["trains"]]
     alerts = [alert for alert in trains_json["alerts"]]
     trains_ic = [train for train in trains if train["carrier"] == "IC"]
 
     return trains_ic, alerts
+
 
 def process_trains(trains_ic, alerts, feed):
     for train in trains_ic:
@@ -64,7 +74,11 @@ def process_trains(trains_ic, alerts, feed):
             gtfs_realtime_pb2.TripDescriptor.SCHEDULED
         )
 
-        for i, station in enumerate(train["stations"]):
+        stations = train["stations"]
+        if stations[0]["departureDelay"] < - 23*3600*1000 or stations[0]["departureDelay"] > 23*3600*1000:
+            print(f"{train['gtfsId']}: {datetime.fromtimestamp(stations[0]['scheduledArrival']/1000)}")
+            continue
+        for i, station in enumerate(stations):
             stu = gtfs_realtime_pb2.TripUpdate.StopTimeUpdate(
                 stop_sequence=i,
                 departure=gtfs_realtime_pb2.TripUpdate.StopTimeEvent(
@@ -107,10 +121,3 @@ def process_trains(trains_ic, alerts, feed):
                 feed.entity.append(alert_ent)
 
         feed.entity.append(ent)
-
-    if os.environ.get("DEBUG"):
-        with open("output.json", "w") as f:
-            f.write(str(feed))
-
-    with open("output.pb", "wb") as f:
-        f.write(feed.SerializeToString())
