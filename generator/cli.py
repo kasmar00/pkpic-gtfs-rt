@@ -27,9 +27,22 @@ def station_to_dict(station):
         "alertIds": station[7],  # index of alert in alerts array
     }
 
+import argparse
+
+carriers = {
+    "IC": None,
+    "RJ": None,
+}
 
 def main():
-    print("This is the main function of the CLI module.")
+    parser = argparse.ArgumentParser("python3 -m generator")
+    parser.add_argument("--carrier", help="Short name of carrier", type=str, required=True)
+    args = parser.parse_args()
+
+    if args.carrier not in carriers:
+        raise ValueError(f"Unknown carrier {args.carrier}, available: {', '.join(carriers.keys())}")
+    print(f"Generating GTFS-RT for {args.carrier}")
+
     trains_json = requests.get("https://cdn.zbiorkom.live/active.json").json()
     finished_trains_json = requests.get("https://cdn.zbiorkom.live/completed.json").json()
 
@@ -39,10 +52,10 @@ def main():
 
     feed.header.gtfs_realtime_version = "2.0"
 
-    trains, alerts = json_to_trains_and_alerts(trains_json)
+    trains, alerts = json_to_trains_and_alerts(trains_json, args.carrier)
     process_trains(trains, alerts, feed)
 
-    finished_trains, finished_alerts = json_to_trains_and_alerts(finished_trains_json)
+    finished_trains, finished_alerts = json_to_trains_and_alerts(finished_trains_json, args.carrier)
     process_trains(finished_trains, finished_alerts, feed)
 
     if os.environ.get("DEBUG"):
@@ -53,10 +66,10 @@ def main():
         f.write(feed.SerializeToString())
 
 
-def json_to_trains_and_alerts(trains_json):
+def json_to_trains_and_alerts(trains_json, carrier):
     trains = [train_to_dict(train) for train in trains_json["trains"]]
     alerts = [alert for alert in trains_json["alerts"]]
-    filtered_trains = [train for train in trains if train["carrier"] == "IC"]
+    filtered_trains = [train for train in trains if train["carrier"] == carrier]
 
     return filtered_trains, alerts
 
