@@ -32,6 +32,7 @@ import argparse
 carriers = {
     "IC": None,
     "RJ": None,
+    "KD": None
 }
 
 def main():
@@ -78,19 +79,24 @@ def trip_id_to_date(trip_id: str) -> str: # YYYYMMDD
         return trip_id[0:8]
     return trip_id[0:10].replace("-", "") #IC
 
+def first_stop_to_date(departure: int) -> str:
+    date = datetime.fromtimestamp(departure /1000)
+    return str(date.date()).replace("-", "")
+
 
 def process_trains(trains_ic, alerts, feed):
     for train in trains_ic:
         ent = gtfs_realtime_pb2.FeedEntity()
 
+        stations = train["stations"]
+
         ent.id = train["gtfsId"]
         ent.trip_update.trip.trip_id = train["gtfsId"]
-        ent.trip_update.trip.start_date = trip_id_to_date(train["gtfsId"]) # YYYYMMDD
+        ent.trip_update.trip.start_date = first_stop_to_date(stations[0]["scheduledDeparture"]) #trip_id_to_date(train["gtfsId"]) # YYYYMMDD
         ent.trip_update.trip.schedule_relationship = (
             gtfs_realtime_pb2.TripDescriptor.SCHEDULED
         )
 
-        stations = train["stations"]
         if stations[0]["departureDelay"] < - 23*3600*1000 or stations[0]["departureDelay"] > 23*3600*1000:
             print(f"{train['gtfsId']}: {datetime.fromtimestamp(stations[0]['scheduledArrival']/1000)}")
             continue
