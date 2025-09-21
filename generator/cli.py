@@ -56,9 +56,14 @@ def main():
 def json_to_trains_and_alerts(trains_json):
     trains = [train_to_dict(train) for train in trains_json["trains"]]
     alerts = [alert for alert in trains_json["alerts"]]
-    trains_ic = [train for train in trains if train["carrier"] == "IC"]
+    filtered_trains = [train for train in trains if train["carrier"] == "IC"]
 
-    return trains_ic, alerts
+    return filtered_trains, alerts
+
+def trip_id_to_date(trip_id: str) -> str: # YYYYMMDD
+    if "-" not in trip_id[0:8]: #RJ
+        return trip_id[0:8]
+    return trip_id[0:10].replace("-", "") #IC
 
 
 def process_trains(trains_ic, alerts, feed):
@@ -67,9 +72,7 @@ def process_trains(trains_ic, alerts, feed):
 
         ent.id = train["gtfsId"]
         ent.trip_update.trip.trip_id = train["gtfsId"]
-        ent.trip_update.trip.start_date = train["gtfsId"][0:10].replace(
-            "-", ""
-        )  # YYYYMMDD
+        ent.trip_update.trip.start_date = trip_id_to_date(train["gtfsId"]) # YYYYMMDD
         ent.trip_update.trip.schedule_relationship = (
             gtfs_realtime_pb2.TripDescriptor.SCHEDULED
         )
