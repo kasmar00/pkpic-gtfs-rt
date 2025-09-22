@@ -32,7 +32,16 @@ import argparse
 carriers = {
     "IC": None,
     "RJ": None,
-    "KD": None
+    "KD": None,
+    "PR": None,
+    "ŁKA": None,
+    "SKMT": None,
+    "KMŁ": None,
+    "KW": None,
+    "AR": None,
+    "KM": None,
+    "KS": None,
+    "SKM": None,
 }
 
 def main():
