@@ -125,7 +125,8 @@ def process_trains(trains_ic, alerts, feed):
                     gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.ScheduleRelationship.SKIPPED
                 )
 
-            ent.trip_update.stop_time_update.append(stu)
+            if stu.departure.delay != 0 or stu.arrival.delay != 0 or station["isCancelled"]:
+                ent.trip_update.stop_time_update.append(stu)
 
             # TODO: add one global alert for all trains with the same alert text
             for alertId in station["alertIds"]:
