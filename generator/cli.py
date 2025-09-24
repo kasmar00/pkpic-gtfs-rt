@@ -2,6 +2,7 @@ import requests
 from google.transit import gtfs_realtime_pb2
 import os
 from datetime import datetime
+from .download import download_with_cache
 
 
 def train_to_dict(train):
@@ -53,8 +54,8 @@ def main():
         raise ValueError(f"Unknown carrier {args.carrier}, available: {', '.join(carriers.keys())}")
     print(f"Generating GTFS-RT for {args.carrier}")
 
-    trains_json = requests.get("https://cdn.zbiorkom.live/active.json").json()
-    finished_trains_json = requests.get("https://cdn.zbiorkom.live/completed.json").json()
+    trains_json = download_with_cache("https://cdn.zbiorkom.live/active.json")
+    finished_trains_json = download_with_cache("https://cdn.zbiorkom.live/completed.json")
 
     # TODO: add station ids and detours/canceled stations
 
