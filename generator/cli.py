@@ -64,10 +64,10 @@ def main():
     feed.header.gtfs_realtime_version = "2.0"
 
     trains, alerts = json_to_trains_and_alerts(trains_json, args.carrier)
-    process_trains(trains, alerts, feed)
+    process_trains(trains, alerts, feed, "a")
 
     finished_trains, finished_alerts = json_to_trains_and_alerts(finished_trains_json, args.carrier)
-    process_trains(finished_trains, finished_alerts, feed)
+    process_trains(finished_trains, finished_alerts, feed, "c")
 
     if os.environ.get("DEBUG"):
         with open("output.json", "w") as f:
@@ -94,8 +94,24 @@ def first_stop_to_date(departure: int) -> str:
     return str(date.date()).replace("-", "")
 
 
-def process_trains(trains_ic, alerts, feed):
-    for train in trains_ic:
+def process_trains(trains, alerts, feed, source: str):
+    alert_entities = []
+    for i, alert in enumerate(alerts):
+        ent = gtfs_realtime_pb2.FeedEntity()
+        ent.id = f"alert_{source}_{i}"
+        ent.alert.cause = gtfs_realtime_pb2.Alert.UNKNOWN_CAUSE
+        ent.alert.effect = gtfs_realtime_pb2.Alert.UNKNOWN_EFFECT
+
+        ent.alert.header_text.translation.append(
+            gtfs_realtime_pb2.TranslatedString.Translation(
+                text=alert,
+                language="pl",
+            )
+        )
+
+        alert_entities.append(ent)
+
+    for train in trains:
         ent = gtfs_realtime_pb2.FeedEntity()
 
         stations = train["stations"]
@@ -131,26 +147,15 @@ def process_trains(trains_ic, alerts, feed):
 
             # TODO: add one global alert for all trains with the same alert text
             for alertId in station["alertIds"]:
-                alert: str = alerts[alertId]
-                alert_ent = gtfs_realtime_pb2.FeedEntity()
-                alert_ent.id = ent.id + f"_{i}_{alertId}"
-
-                alert_ent.alert.cause = gtfs_realtime_pb2.Alert.UNKNOWN_CAUSE
-                alert_ent.alert.effect = gtfs_realtime_pb2.Alert.UNKNOWN_EFFECT
-
-                alert_ent.alert.header_text.translation.append(
-                    gtfs_realtime_pb2.TranslatedString.Translation(
-                        text=alert,
-                        language="pl",
-                    )
-                )
-
                 trip_selector = gtfs_realtime_pb2.EntitySelector()
                 # TODO: add affected stop
                 trip_selector.trip.trip_id = ent.trip_update.trip.trip_id
                 trip_selector.trip.start_date = ent.trip_update.trip.start_date
 
-                alert_ent.alert.informed_entity.append(trip_selector)
-                feed.entity.append(alert_ent)
+                alert_entities[alertId].alert.informed_entity.append(trip_selector)
 
         feed.entity.append(ent)
+
+    for ent in alert_entities:
+        if len(ent.alert.informed_entity) > 0:
+            feed.entity.append(ent)
