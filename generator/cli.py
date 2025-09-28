@@ -1,8 +1,9 @@
-import requests
 from google.transit import gtfs_realtime_pb2
 import os
 from datetime import datetime
 from .download import download_with_cache
+from email.utils import parsedate_to_datetime
+import argparse
 
 
 def train_to_dict(train):
@@ -28,7 +29,6 @@ def station_to_dict(station):
         "alertIds": station[7],  # index of alert in alerts array
     }
 
-import argparse
 
 carriers = {
     "IC": None,
@@ -45,28 +45,40 @@ carriers = {
     "SKM": None,
 }
 
+
 def main():
     parser = argparse.ArgumentParser("python3 -m generator")
-    parser.add_argument("--carrier", help="Short name of carrier", type=str, required=True)
+    parser.add_argument(
+        "--carrier", help="Short name of carrier", type=str, required=True
+    )
     args = parser.parse_args()
 
     if args.carrier not in carriers:
-        raise ValueError(f"Unknown carrier {args.carrier}, available: {', '.join(carriers.keys())}")
+        raise ValueError(
+            f"Unknown carrier {args.carrier}, available: {', '.join(carriers.keys())}"
+        )
     print(f"Generating GTFS-RT for {args.carrier}")
 
-    trains_json = download_with_cache("https://cdn.zbiorkom.live/active.json")
-    finished_trains_json = download_with_cache("https://cdn.zbiorkom.live/completed.json")
+    trains_json, last_modified = download_with_cache(
+        "https://cdn.zbiorkom.live/active.json"
+    )
+    finished_trains_json, _ = download_with_cache(
+        "https://cdn.zbiorkom.live/completed.json"
+    )
 
     # TODO: add station ids and detours/canceled stations
 
     feed = gtfs_realtime_pb2.FeedMessage()
 
     feed.header.gtfs_realtime_version = "2.0"
+    feed.header.timestamp = int(parsedate_to_datetime(last_modified).timestamp())
 
     trains, alerts = json_to_trains_and_alerts(trains_json, args.carrier)
     process_trains(trains, alerts, feed, "a")
 
-    finished_trains, finished_alerts = json_to_trains_and_alerts(finished_trains_json, args.carrier)
+    finished_trains, finished_alerts = json_to_trains_and_alerts(
+        finished_trains_json, args.carrier
+    )
     process_trains(finished_trains, finished_alerts, feed, "c")
 
     if os.environ.get("DEBUG"):
@@ -84,13 +96,9 @@ def json_to_trains_and_alerts(trains_json, carrier):
 
     return filtered_trains, alerts
 
-def trip_id_to_date(trip_id: str) -> str: # YYYYMMDD
-    if "-" not in trip_id[0:8]: #RJ
-        return trip_id[0:8]
-    return trip_id[0:10].replace("-", "") #IC
 
 def first_stop_to_date(departure: int) -> str:
-    date = datetime.fromtimestamp(departure /1000)
+    date = datetime.fromtimestamp(departure / 1000)
     return str(date.date()).replace("-", "")
 
 
@@ -118,14 +126,22 @@ def process_trains(trains, alerts, feed, source: str):
 
         ent.id = train["gtfsId"]
         ent.trip_update.trip.trip_id = train["gtfsId"]
-        ent.trip_update.trip.start_date = first_stop_to_date(stations[0]["scheduledDeparture"]) #trip_id_to_date(train["gtfsId"]) # YYYYMMDD
+        ent.trip_update.trip.start_date = first_stop_to_date(
+            stations[0]["scheduledDeparture"]
+        )
         ent.trip_update.trip.schedule_relationship = (
             gtfs_realtime_pb2.TripDescriptor.SCHEDULED
         )
 
-        if stations[0]["departureDelay"] < - 23*3600*1000 or stations[0]["departureDelay"] > 23*3600*1000:
-            print(f"{train['gtfsId']}: {datetime.fromtimestamp(stations[0]['scheduledArrival']/1000)}")
+        if (
+            stations[0]["departureDelay"] < -23 * 3600 * 1000
+            or stations[0]["departureDelay"] > 23 * 3600 * 1000
+        ):
+            print(
+                f"{train['gtfsId']}: {datetime.fromtimestamp(stations[0]['scheduledArrival']/1000)}"
+            )
             continue
+
         for i, station in enumerate(stations):
             stu = gtfs_realtime_pb2.TripUpdate.StopTimeUpdate(
                 stop_sequence=i,
@@ -142,7 +158,11 @@ def process_trains(trains, alerts, feed, source: str):
                     gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.ScheduleRelationship.SKIPPED
                 )
 
-            if stu.departure.delay != 0 or stu.arrival.delay != 0 or station["isCancelled"]:
+            if (
+                stu.departure.delay != 0
+                or stu.arrival.delay != 0
+                or station["isCancelled"]
+            ):
                 ent.trip_update.stop_time_update.append(stu)
 
             # TODO: add one global alert for all trains with the same alert text
