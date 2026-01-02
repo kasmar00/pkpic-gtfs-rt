@@ -1,6 +1,6 @@
 from google.transit import gtfs_realtime_pb2
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from .download import download_with_cache
 from email.utils import parsedate_to_datetime
 import argparse
@@ -14,6 +14,7 @@ def train_to_dict(train):
         "route": train[3],
         "shortName": train[4],
         "stations": [station_to_dict(station) for station in train[5]],
+        "lastUpdate": train[6]
     }
 
 
@@ -71,7 +72,7 @@ def main():
     feed = gtfs_realtime_pb2.FeedMessage()
 
     feed.header.gtfs_realtime_version = "2.0"
-    feed.header.timestamp = int(parsedate_to_datetime(last_modified).timestamp())
+    feed.header.timestamp = int((datetime.today() - timedelta(days = 1)).timestamp())
 
     trains, alerts = json_to_trains_and_alerts(trains_json, args.carrier)
     process_trains(trains, alerts, feed, "a")
@@ -173,6 +174,8 @@ def process_trains(trains, alerts, feed, source: str):
                 trip_selector.trip.start_date = ent.trip_update.trip.start_date
 
                 alert_entities[alertId].alert.informed_entity.append(trip_selector)
+
+        feed.header.timestamp = max(feed.header.timestamp, train["lastUpdate"])
 
         feed.entity.append(ent)
 
