@@ -175,7 +175,9 @@ def process_trains(trains, alerts, feed, source: str):
 
                 alert_entities[alertId].alert.informed_entity.append(trip_selector)
 
-        feed.header.timestamp = max(feed.header.timestamp, int(train["lastUpdate"]/1000))
+        train_timestamp = int(train["lastUpdate"]/1000)
+        feed.header.timestamp = max(feed.header.timestamp, train_timestamp)
+        ent.trip_update.timestamp = train_timestamp
 
         feed.entity.append(ent)
 
