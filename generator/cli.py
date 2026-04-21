@@ -125,7 +125,7 @@ def process_trains(trains, alerts, feed, source: str):
 
         stations = train["stations"]
         if len(stations) == 0:
-            print(f"Skipping train without stations: {train["gtfsId"]} '{train["shortName"]}'")
+            print(f"Skipping train without stations: {train['gtfsId']} '{train['shortName']}'")
             continue
 
         ent.id = train["gtfsId"]
