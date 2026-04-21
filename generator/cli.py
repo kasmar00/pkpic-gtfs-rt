@@ -124,6 +124,9 @@ def process_trains(trains, alerts, feed, source: str):
         ent = gtfs_realtime_pb2.FeedEntity()
 
         stations = train["stations"]
+        if len(stations) == 0:
+            print(f"Skipping train without stations: {train["gtfsId"]} '{train["shortName"]}'")
+            continue
 
         ent.id = train["gtfsId"]
         ent.trip_update.trip.trip_id = train["gtfsId"]
